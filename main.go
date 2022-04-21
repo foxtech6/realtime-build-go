@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/foxtech6/realtime-build-go/spier"
 	"log"
+	"os/exec"
 )
 
 func main() {
@@ -19,6 +20,8 @@ func main() {
 	for {
 		select {
 		case ev := <-watcher.Event:
+			cmd := exec.Command("go", "build")
+			println(cmd.CombinedOutput())
 			log.Println(ev.Mask)
 		case err := <-watcher.Error:
 			log.Println("error:", err)

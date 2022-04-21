@@ -65,10 +65,10 @@ func (w *Watcher) Watch(path string) error {
 		flags |= syscall.IN_MASK_ADD
 	}
 
-	wd, errno := syscall.InotifyAddWatch(w.fd, path, flags)
+	wd, err := syscall.InotifyAddWatch(w.fd, path, flags)
 
 	if wd == -1 {
-		return &os.PathError{Op: "inotify_add_watch", Path: path, Err: errno}
+		return &os.PathError{Op: "inotify_add_watch", Path: path, Err: err}
 	}
 
 	if !found {
@@ -90,6 +90,7 @@ func (w *Watcher) readEvents() {
 		n, err = syscall.Read(w.fd, buf[0:])
 
 		var done bool
+
 		select {
 		case done = <-w.done:
 		default:

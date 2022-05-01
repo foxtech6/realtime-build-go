@@ -20,7 +20,7 @@ type watch struct {
 	flags uint32
 }
 
-type Watcher struct {
+type Spy struct {
 	fd       int
 	watches  map[string]*watch
 	paths    map[int]string
@@ -30,14 +30,14 @@ type Watcher struct {
 	isClosed bool
 }
 
-func NewWatcher() (*Watcher, error) {
+func New() (*Spy, error) {
 	fd, err := syscall.InotifyInit()
 
 	if fd == -1 {
 		return nil, os.NewSyscallError("inotify_init", err)
 	}
 
-	w := &Watcher{
+	s := &Spy{
 		fd:      fd,
 		watches: make(map[string]*watch),
 		paths:   make(map[int]string),
@@ -46,17 +46,17 @@ func NewWatcher() (*Watcher, error) {
 		done:    make(chan bool, 1),
 	}
 
-	go w.readEvents()
+	go s.readEvents()
 
-	return w, nil
+	return s, nil
 }
 
-func (w *Watcher) Watch(path string) error {
-	if w.isClosed {
+func (s *Spy) Watch(path string) error {
+	if s.isClosed {
 		return errors.New("inotify instance already closed")
 	}
 
-	watchEntry, found := w.watches[path]
+	watchEntry, found := s.watches[path]
 
 	flags := uint32(syscall.IN_ALL_EVENTS)
 
@@ -65,21 +65,21 @@ func (w *Watcher) Watch(path string) error {
 		flags |= syscall.IN_MASK_ADD
 	}
 
-	wd, err := syscall.InotifyAddWatch(w.fd, path, flags)
+	wd, err := syscall.InotifyAddWatch(s.fd, path, flags)
 
 	if wd == -1 {
 		return &os.PathError{Op: "inotify_add_watch", Path: path, Err: err}
 	}
 
 	if !found {
-		w.watches[path] = &watch{wd: uint32(wd), flags: flags}
-		w.paths[wd] = path
+		s.watches[path] = &watch{wd: uint32(wd), flags: flags}
+		s.paths[wd] = path
 	}
 
 	return nil
 }
 
-func (w *Watcher) readEvents() {
+func (s *Spy) readEvents() {
 	var (
 		buf [syscall.SizeofInotifyEvent * 4096]byte
 		n   int
@@ -87,35 +87,35 @@ func (w *Watcher) readEvents() {
 	)
 
 	for {
-		n, err = syscall.Read(w.fd, buf[0:])
+		n, err = syscall.Read(s.fd, buf[0:])
 
 		var done bool
 
 		select {
-		case done = <-w.done:
+		case done = <-s.done:
 		default:
 		}
 
 		if n == 0 || done {
-			err := syscall.Close(w.fd)
+			err := syscall.Close(s.fd)
 
 			if err != nil {
-				w.Error <- os.NewSyscallError("close", err)
+				s.Error <- os.NewSyscallError("close", err)
 			}
 
-			close(w.Event)
-			close(w.Error)
+			close(s.Event)
+			close(s.Error)
 
 			return
 		}
 
 		if n < 0 {
-			w.Error <- os.NewSyscallError("read", err)
+			s.Error <- os.NewSyscallError("read", err)
 			continue
 		}
 
 		if n < syscall.SizeofInotifyEvent {
-			w.Error <- errors.New("inotify: short read in readEvents()")
+			s.Error <- errors.New("inotify: short read in readEvents()")
 			continue
 		}
 
@@ -125,7 +125,7 @@ func (w *Watcher) readEvents() {
 			event := Event{
 				Mask:   raw.Mask,
 				Cookie: raw.Cookie,
-				Name:   w.paths[int(raw.Wd)],
+				Name:   s.paths[int(raw.Wd)],
 			}
 
 			nameLen := raw.Len
@@ -137,7 +137,7 @@ func (w *Watcher) readEvents() {
 
 			//:TODO change it
 			if event.Mask&unix.IN_MODIFY == unix.IN_MODIFY {
-				w.Event <- &event
+				s.Event <- &event
 			}
 
 			offset += syscall.SizeofInotifyEvent + nameLen

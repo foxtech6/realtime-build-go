@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	watcher, err := spier.NewWatcher()
+	s, err := spier.New()
 	r := restarter.New()
 	go r.Run()
 
@@ -15,13 +15,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err = watcher.Watch("/home/mbavdys/Projects/spyfiles/test"); err != nil {
+	if err = s.Watch("/home/mbavdys/Projects/spyfiles/test"); err != nil {
 		log.Fatal(err)
 	}
 
 	for {
 		select {
-		case ev := <-watcher.Event:
+		case ev := <-s.Event:
 			//cmd := exec.Command("go", "build", "-o", "file")
 			//println(cmd.CombinedOutput())
 			log.Println(ev.Mask)
@@ -30,7 +30,7 @@ func main() {
 			//fmt.Printf("OUTPUT: %s", cmd1)
 			//cmd1.Process.Kill()
 
-		case err := <-watcher.Error:
+		case err := <-s.Error:
 			log.Println("error:", err)
 		}
 	}

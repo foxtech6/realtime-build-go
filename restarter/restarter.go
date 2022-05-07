@@ -1,33 +1,53 @@
 package restarter
 
 import (
+	"bytes"
 	"fmt"
 	"os/exec"
 )
 
 type Restart struct {
-	Chan chan string
+	c   chan string
+	cmd *exec.Cmd
 }
 
 func New() Restart {
-	return Restart{
-		Chan: make(chan string),
+	r := Restart{
+		c: make(chan string),
 	}
+
+	go r.Run()
+
+	return r
 }
 
 func (r Restart) Run() {
 	for {
 		select {
-		case filename := <-r.Chan:
-			cmd, _ := exec.Command(filename).Output()
-			fmt.Printf("OUTPUT: %s", cmd)
+		case filename := <-r.c:
+			r.cmd = exec.Command(filename)
+
+			//TODO delete with fmt.Printf("OUTPUT: %s", stdout.Bytes())
+			var stdout bytes.Buffer
+			r.cmd.Stdout = &stdout
+
+			if err := r.cmd.Run(); err != nil {
+				fmt.Printf("ERR: %s", err.Error())
+			}
+
+			//TODO delete
+			fmt.Printf("OUTPUT: %s", stdout.Bytes())
 		}
 	}
 }
 
 func (r Restart) Restart(filename string) {
 	//removeFile(filename)
-	r.Chan <- filename
+	if r.cmd != nil {
+		r.cmd.Process.Kill()
+	}
+
+	r.c <- filename
 }
 
 func removeFile(fileName string) {

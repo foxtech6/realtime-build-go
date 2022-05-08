@@ -137,6 +137,7 @@ func (s *Spy) readEvents() {
 
 			//:TODO change it
 			if event.Mask&unix.IN_MODIFY == unix.IN_MODIFY {
+				println(22)
 				s.Event <- &event
 			}
 

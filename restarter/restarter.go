@@ -3,6 +3,7 @@ package restarter
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 )
 
@@ -32,28 +33,49 @@ func (r Restart) Run() {
 			r.cmd.Stdout = &stdout
 
 			if err := r.cmd.Run(); err != nil {
-				fmt.Printf("ERR: %s", err.Error())
+				fmt.Printf("ERR: %s\n", err.Error())
 			}
 
 			//TODO delete
-			fmt.Printf("OUTPUT: %s", stdout.Bytes())
+			fmt.Printf("OUTPUT: %s\n", stdout.Bytes())
 		}
 	}
 }
 
 func (r Restart) Restart(filename string) {
-	//removeFile(filename)
 	if r.cmd != nil {
 		r.cmd.Process.Kill()
 	}
 
+	removeFile(filename)
+	build(filename)
+
 	r.c <- filename
 }
 
-func removeFile(fileName string) {
-	if fileName != "" {
-		cmd := exec.Command("rm", fileName)
-		cmd.Run()
-		cmd.Wait()
+func build(filename string) {
+	if err := exec.Command("go", "build", "-o", filename, ".").Run(); err != nil {
+		fmt.Printf("ERR build: %s\n", err.Error())
 	}
+}
+
+func removeFile(fileName string) {
+	if ok, _ := existsFile(fileName); !ok {
+		fmt.Printf("INF remove: file not exists\n")
+		return
+	}
+
+	if err := exec.Command("rm", fileName).Run(); err != nil {
+		fmt.Printf("ERR remove: %s\n", err.Error())
+	}
+}
+
+func existsFile(filename string) (bool, error) {
+	_, err := os.Stat(filename)
+
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+
+	return err == nil, err
 }

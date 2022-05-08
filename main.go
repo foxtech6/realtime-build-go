@@ -9,7 +9,6 @@ import (
 func main() {
 	s, err := spier.New()
 	r := restarter.New()
-	go r.Run()
 
 	if err != nil {
 		log.Fatal(err)
@@ -25,7 +24,7 @@ func main() {
 			//cmd := exec.Command("go", "build", "-o", "file")
 			//println(cmd.CombinedOutput())
 			log.Println(ev.Mask)
-			r.Restart("./file123")
+			r.Restart("test1")
 			//cmd1, _ := exec.Command("./file123").Output()
 			//fmt.Printf("OUTPUT: %s", cmd1)
 			//cmd1.Process.Kill()
